@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "gitunzip",
+  "version": "0.1.0",
+  "description": "Preview zip file contents directly on GitHub without downloading.",
+  "permissions": [],
+  "host_permissions": [
+    "https://github.com/*",
+    "https://raw.githubusercontent.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://github.com/*/*/blob/*"],
+      "js": ["lib/fflate.js", "content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
