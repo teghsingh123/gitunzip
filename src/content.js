@@ -109,7 +109,11 @@ function createZipLink(rawLink) {
         e.preventDefault();
         const bytes = await fetchRawBytes(getRawUrl());
         const files = unzip(bytes);
-        console.log(files);
+        
+
+        //render in browser
+        const tree = buildFileTree(files);
+        renderZipBrowser(tree, rawLink.parentElement)
     })
 
     return zipLink;
