@@ -2,8 +2,6 @@
 // Runs on GitHub blob pages (https://github.com/*/*/blob/*).
 // `fflate` is loaded as a global by manifest.json before this file.
 
-const { zip } = require("fflate");
-
 // 1. Check if the github url is even a .zip link in the first place
 
 const ZIP_EXTENSION = /\.zip$/i;
@@ -117,3 +115,25 @@ function createZipLink(rawLink) {
     return zipLink;
 }
 
+/**
+ * Everything is good, now to wire everything together.
+ */
+
+
+function init() {
+    if (!isZipBlobPage()) return;
+
+    //the page used to call init() right away before anything has loaded so the Preview zip does not appear
+    //So we use setInterval to repeatedly call it until it finds a raw link.
+    
+    const intervalId = setInterval(() => {
+        const rawLink = findRawLink();
+        if (!rawLink) return;
+
+        clearInterval(intervalId);
+        const zipLink = createZipLink(rawLink);
+        rawLink.insertAdjacentElement('afterend', zipLink);
+    }, 200);
+}
+
+init();
