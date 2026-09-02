@@ -113,7 +113,15 @@ function createZipLink(rawLink) {
 
         //render in browser
         const tree = buildFileTree(files);
-        renderZipBrowser(tree, rawLink.parentElement)
+
+        const browserContainer = document.createElement('div');
+        browserContainer.className = 'gitunzip-browser';
+        rawLink.parentElement.insertAdjacentElement('afterend', browserContainer);
+
+        rawLink.parentElement.classList.add('gitunzip-hidden');
+        rawLink.parentElement.style.display = 'none';
+
+        renderZipBrowser(tree, browserContainer);
     })
 
     return zipLink;
@@ -124,20 +132,111 @@ function createZipLink(rawLink) {
  */
 
 
-function init() {
-    if (!isZipBlobPage()) return;
+// function init() {
+//     if (!isZipBlobPage()) return;
 
-    //the page used to call init() right away before anything has loaded so the Preview zip does not appear
-    //So we use setInterval to repeatedly call it until it finds a raw link.
+//     //add a guard so init skips if preview zip already exists
+
+//     if (document.querySelector('.zip-link')) return;
+
+//     //the page used to call init() right away before anything has loaded so the Preview zip does not appear
+//     //So we use setInterval to repeatedly call it until it finds a raw link.
     
-    const intervalId = setInterval(() => {
-        const rawLink = findRawLink();
-        if (!rawLink) return;
+//     const intervalId = setInterval(() => {
+//         const rawLink = findRawLink();
+//         if (!rawLink) return;
 
-        clearInterval(intervalId);
-        const zipLink = createZipLink(rawLink);
-        rawLink.insertAdjacentElement('afterend', zipLink);
-    }, 200);
+//         clearInterval(intervalId);
+//         const zipLink = createZipLink(rawLink);
+//         rawLink.insertAdjacentElement('afterend', zipLink);
+//     }, 200);
+// }
+
+
+/**
+ * Github does not do a full page reload when navigating through pages on its site.
+ * Similar to soundcloud where the song keeps playing even though the url extension stuff keeps changing
+ * This causes gitunzip to only inject once.
+ * We need to detect every page reload so we can keep injecting.
+ * This is important because right now what happens is that if i view one zip file i can see the contents then when
+ * i click on another zip file i still see the old zip files content.
+ * Then if i click no a non zip file and then the new zip file, I dont see the option to preview zip.
+ * I have to go to the console to manually call init for the href to appear to preview zip.
+ * 
+ * So now we are writing an IIFE to keep detecting when client-side navigation occurs.
+ * And then we rerun init every time it happens
+ * 
+ */
+
+// (function () {
+//     const originalPushState = history.pushState; //save a reference to the original push state for future reference
+//     history.pushState = function (...args) { //override .pushstate with our own function. Calls navigate instead of github's pushstate.
+//         originalPushState.apply(this, args); // call original push state
+//         console.log('pushState called');
+//         window.dispatchEvent(new Event('gitunzip:navigate')); //push our own event which calls init when detected below.
+//     };
+
+//     const originalReplaceState = history.replaceState; //same but with replacestate instead of pushstate. Sibling functions.
+//     history.replaceState = function(...args) {
+//         originalReplaceState.apply(this, args);
+//         console.log('replaceState called');
+//         window.dispatchEvent(new Event('gitunzip:navigate'));
+//     } 
+
+//     window.addEventListener('popstate', () => { //user clicks browsers forward/back buttons
+//         window.dispatchEvent(new Event('gitunzip:navigate'));
+//     });
+// }())
+
+// window.addEventListener('gitunzip:navigate', () => { //when the event is caught by the listener init is ran again.
+//     init();
+// })
+
+//replacing state listener
+//Now we just obeserve mutatoins in the DOM
+
+let lastHref = location.href;
+
+
+//clear the previosuly injected elements
+function cleanUpInjectedElements() {
+    document.querySelectorAll('.zip-link, .gitunzip-browser').forEach(e => e.remove());
+    document.querySelectorAll('.gitunzip-hidden').forEach(e => {
+        e.classList.remove('gitunzip-hidden');
+        e.style.display = '';
+    })
 }
 
-init();
+function ensureInjected() {
+    if (location.href !== lastHref) {
+        lastHref = location.href;
+        cleanUpInjectedElements(); //navigated to a different location and wiped our old stuff;
+    }
+
+    if (!isZipBlobPage()) return;
+    if (document.querySelector('.zip-link')) return;
+
+    const rawLink = findRawLink();
+    if (!rawLink) return;
+
+    const zipLink = createZipLink(rawLink);
+    rawLink.insertAdjacentElement('afterend', zipLink);
+}
+
+const observer = new MutationObserver(() => {
+    ensureInjected();
+})
+
+observer.observe(document.body, {childList: true, subtree: true});
+
+ensureInjected();
+
+
+
+
+
+
+
+
+
+//init(); //run once on the initial page load too, since that doesn't fire pushState/replaceState/popstate
